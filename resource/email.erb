@@ -1,0 +1,5 @@
+One or more issues has been deteceted with the MyOps installation at <%= @host %>.
+
+<% for issue in @check.issues -%>
+* <%= issue %>
+<% end -%>

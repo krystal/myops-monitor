@@ -1,0 +1,46 @@
+#!/usr/bin/env ruby
+$:.unshift(File.expand_path('../../lib', __FILE__))
+require 'myops_monitor/config'
+
+require 'myops_monitor/check'
+require 'myops_monitor/alerter'
+
+command = ARGV[0]
+case ARGV[0]
+when 'run'
+  sequential_issues = 0
+  MyOpsMonitor.logger.info "Monitor started"
+  loop do
+    begin
+      check = MyOpsMonitor::Check.new
+      if check.ok?
+        if sequential_issues > 0
+          MyOpsMonitor.logger.info "Everything has recovered"
+        end
+        sequential_issues = 0
+      else
+        sequential_issues += 1
+        MyOpsMonitor.logger.info "#{check.issues.size} issues have been detected (#{check.issues.join(', ')})"
+        if sequential_issues == MyOpsMonitor.config['alerts']['sequence']
+          alerter = MyOpsMonitor::Alerter.new(check)
+          alerter.send_alerts
+        end
+      end
+    rescue => e
+      MyOpsMonitor.logger.error "Error: #{e.class}: #{e.message}"
+      e.backtrace.each { |bt| MyOpsMonitor.logger.error bt }
+    end
+    sleep MyOpsMonitor.config['checker']['sleep']
+  end
+when 'test'
+  begin
+    check = MyOpsMonitor::Check.new
+    alerter = MyOpsMonitor::Alerter.new(check)
+    alerter.send_alerts
+  rescue => e
+    puts "An error occurred!"
+    puts "#{e.class}: #{e.message}"
+  end
+else
+  puts "usage: #{__FILE__} (run|test)"
+end
