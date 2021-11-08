@@ -32,7 +32,7 @@ module MyOpsMonitor
             a << "There are #{unpolled['servers']} unpolled switches"
           end
 
-          if stale_locks['switches'] > 0
+          if stale_locks['servers'] > 0
             a << "There are #{stale_locks['servers']} servers with stale locks"
           end
 
