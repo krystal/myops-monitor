@@ -1,4 +1,8 @@
-source "https://rubygems.org"
-gem 'mail'
+source 'https://rubygems.org'
+gem 'dotenv'
 gem 'json'
-gem 'moonrope-client'
+gem 'mail'
+
+group :test do
+  gem 'rubocop'
+end

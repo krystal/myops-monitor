@@ -1,46 +1,54 @@
 #!/usr/bin/env ruby
-$:.unshift(File.expand_path('../../lib', __FILE__))
+
+$:.unshift(File.expand_path('../lib', __dir__))
+require 'dotenv/load'
+
 require 'myops_monitor/config'
 
 require 'myops_monitor/check'
 require 'myops_monitor/alerter'
 
+if ENV['MYOPS_HOST'].nil?
+  warn "No MYOPS_HOST has been configured"
+  exit 1
+end
+
+trap('INT') { exit 0 }
+trap('TERM') { exit 0 }
+
 command = ARGV[0]
 case ARGV[0]
 when 'run'
   sequential_issues = 0
-  MyOpsMonitor.logger.info "Monitor started"
+  MyOpsMonitor.logger.info "Monitor started for #{ENV['MYOPS_HOST'].inspect}"
   loop do
     begin
       check = MyOpsMonitor::Check.new
-      if check.ok?
-        if sequential_issues > 0
-          MyOpsMonitor.logger.info "Everything has recovered"
-        end
+      if check.issue.nil?
+        MyOpsMonitor.logger.info 'Everything has recovered' if sequential_issues > 0
         sequential_issues = 0
       else
         sequential_issues += 1
-        MyOpsMonitor.logger.info "#{check.issues.size} issues have been detected (#{check.issues.join(', ')})"
-        if sequential_issues == MyOpsMonitor.config['alerts']['sequence']
+        MyOpsMonitor.logger.info "#{check.issue} issue has been detected"
+        if sequential_issues == ENV.fetch('ISSUE_TOLERANCE', 3)
           alerter = MyOpsMonitor::Alerter.new(check)
           alerter.send_alerts
         end
       end
-    rescue => e
+    rescue StandardError => e
       MyOpsMonitor.logger.error "Error: #{e.class}: #{e.message}"
       e.backtrace.each { |bt| MyOpsMonitor.logger.error bt }
     end
-    sleep MyOpsMonitor.config['checker']['sleep']
+    sleep ENV.fetch('SLEEP_TIME', 60)
   end
 when 'test'
-  begin
-    check = MyOpsMonitor::Check.new
-    alerter = MyOpsMonitor::Alerter.new(check)
-    alerter.send_alerts
-  rescue => e
-    puts "An error occurred!"
-    puts "#{e.class}: #{e.message}"
-  end
+  check = MyOpsMonitor::Check.new
+  puts "Issue: #{check.issue || 'none'}"
+  puts "Hostname: #{check.hostname}"
+  puts check.state
+
+  alerter = MyOpsMonitor::Alerter.new(check)
+  alerter.send_alerts
 else
   puts "usage: #{__FILE__} (run|test)"
 end

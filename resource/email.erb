@@ -1,5 +1,3 @@
-One or more issues has been deteceted with the MyOps installation at <%= @host %>.
+An issue has been deteceted with the MyOps installation at <%= @check.hostname %>.
 
-<% for issue in @check.issues -%>
-* <%= issue %>
-<% end -%>
+The issue is <%= @check.issue %>
